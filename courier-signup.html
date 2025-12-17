@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Courier Sign up - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="courier-signup.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="courier-login.html">Courier login</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container" style="max-width:520px;padding:32px 16px">
+  <h1>Create your courier account</h1>
+  <form id="signup-form" class="form">
+    <label class="label">Full name</label>
+    <input class="input" name="name" required />
+
+    <label class="label">Email</label>
+    <input class="input" name="email" type="email" required />
+
+    <label class="label">Phone</label>
+    <input class="input" name="phone" type="tel" placeholder="e.g. +2348012345678" />
+
+    <label class="label">Password</label>
+    <input class="input" name="password" type="password" required minlength="6" />
+
+    <button class="btn btn-primary" type="submit">Create courier account</button>
+    <p class="small muted">Already a courier? <a id="loginLink" href="courier-login.html">Login</a></p>
+    <p id="signup-error" class="small" style="color:#ef4444;margin:6px 0 0"></p>
+  </form>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script type="module">
+  import { signUp, setUserRole } from './assets/js/auth.js';
+
+  const form = document.getElementById('signup-form');
+  const errEl = document.getElementById('signup-error');
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || 'delivery.html';
+
+  // Preserve next on the top Login link
+  const loginLink = document.getElementById('loginLink');
+  if (loginLink) loginLink.href = `courier-login.html?next=${encodeURIComponent(next)}`;
+
+  // If already logged in, skip
+  try { if (localStorage.getItem('urbaneats_user')) location.replace(next); } catch {}
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+      const user = await signUp({ email: data.email, password: data.password, name: data.name, phone: data.phone });
+      await setUserRole(user.uid, 'courier');
+      location.replace(next);
+    } catch (err) {
+      errEl.textContent = err?.message || 'Sign up failed';
+    }
+  });
+</script>
+</body>
+</html>

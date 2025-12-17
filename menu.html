@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Menu - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .menu-search{ position:relative }
+    .suggest{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.08); overflow:auto; max-height:340px; z-index:30; display:none }
+    .suggest a{ display:flex; align-items:center; gap:10px; padding:8px 10px; text-decoration:none; color:inherit; border-bottom:1px solid #f3f3f3 }
+    .suggest a:last-child{ border-bottom:0 }
+    .suggest img{ width:48px; height:48px; object-fit:cover; border-radius:8px }
+    .suggest .name{ font-size:14px; font-weight:600 }
+    .suggest .meta{ font-size:12px; color:var(--muted) }
+    .suggest .head{ padding:6px 10px; font-size:12px; color:var(--muted); background:#fafafa; border-bottom:1px solid #f3f3f3 }
+  </style>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color: black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <div class="menu-top-actions" id="header-action"></div>
+  </div>
+</header>
+
+<main class="container">
+  <section class="menu-topbar">
+    <div class="location-pill" id="location-pill">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="pill-text">Address: Babcock University, Ilishan-Remo 121103, Ogun State</span>
+      <button id="change-addr" class="chevron" title="Change"></button>
+    </div>
+    <div class="menu-search">
+      <input id="search" class="input" placeholder="What can we get you?" />
+      <button id="searchBtn" class="btn btn-primary">Search</button>
+      <div id="searchSuggest" class="suggest"></div>
+    </div>
+  </section>
+
+  <section class="results-header">
+    <div class="breadcrumbs"><a href="#" class="accent" id="cityCrumb">Your city</a> › Restaurants</div>
+    <h1>Restaurants</h1>
+    <div class="results-side">
+      <span id="count" class="muted">0 results</span>
+      <button id="resetFilters" class="btn reset">Reset</button>
+    </div>
+  </section>
+
+  <section class="stores">
+    <h2>Stores near you</h2>
+    <div id="storesRow" class="stores-row"></div>
+    <p id="storesEmpty" class="muted" style="display:none">No stores found.</p>
+  </section>
+
+  <section class="offers">
+    <div class="offers-head">
+      <h2>Today's offers</h2>
+      <a href="#" class="see-all">See all →</a>
+    </div>
+    <div id="offersToday" class="offer-row"></div>
+  </section>
+
+  <section class="offers">
+    <div class="offers-head">
+      <h2>Most loved deals</h2>
+      <a href="#" class="see-all">See all →</a>
+    </div>
+    <div id="offersLoved" class="offer-row"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="admin.html">Admin</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module">
+  import { initNavCartCount, formatPrice } from './assets/js/app.js';
+  import { listProducts } from './assets/js/auth.js';
+
+  const yearEl = document.getElementById('year');
+  yearEl.textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  // Header action: login or profile icon
+  function renderHeaderAction(){
+    const wrap = document.getElementById('header-action');
+    if (!wrap) return;
+    let u=null; try{ u = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+    if (!u){
+      wrap.innerHTML = `<a class="btn login" href="login.html">Login</a>`;
+    } else {
+      const name = u.displayName || u.email || 'Account';
+      wrap.innerHTML = `<a class=\"icon-btn\" href=\"profile.html\" title=\"${name}\" aria-label=\"Profile\">\n        <svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\">\n          <path d=\"M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z\" fill=\"currentColor\"/>\n          <path d=\"M4 20.25A8.25 8.25 0 0 1 12.25 12h-.5A8.25 8.25 0 0 1 20 20.25c0 .966-.784 1.75-1.75 1.75H5.75A1.75 1.75 0 0 1 4 20.25Z\" fill=\"currentColor\"/>\n        </svg>\n      </a>`;
+    }
+  }
+  
+  function renderOfferRow(target, items){
+    target.innerHTML = items.map(x => `
+      <a class="offer-card" href="#" title="${x.name}">
+        <div class="offer-thumb">
+          <img src="${x.image}" alt="${x.name}" onerror="this.src='assets/img/placeholder.png'"/>
+          <span class="offer-badge">${x.badge}</span>
+        </div>
+        <div class="offer-info">
+          <div class="name">${x.name}</div>
+          <div class="meta">${x.rating}★ <span class="muted">(${x.reviews}) · ${x.time}</span></div>
+        </div>
+      </a>
+    `).join('');
+  }
+  
+  renderHeaderAction();
+
+  const storesRow = document.getElementById('storesRow');
+  const searchEl = document.getElementById('search');
+  const countEl = document.getElementById('count');
+  const pillText = document.getElementById('pill-text');
+  const storesEmpty = document.getElementById('storesEmpty');
+  const offersTodayEl = document.getElementById('offersToday');
+  const offersLovedEl = document.getElementById('offersLoved');
+
+  const STORES = [
+    { id:'waffledom', name:"Waffledom", image:'assets/img/waffledom.png' },
+    { id:'bigmeals', name:"Big Meals", image:'assets/img/bigmeals.jpeg' },
+    { id:'bgh', name:"Guest House", image:'assets/img/bgh.png' },
+    { id:'superstore', name:"Superstore", image:'assets/img/superstore.jpg' },
+    { id:'onile-ebi', name:"Onile ebi", image:'assets/img/onileebi.jpeg' },
+    { id:'flakkys', name:"Flakky\'s", image:'assets/img/flakkys.jpeg' },
+    { id:'ifysamsons', name:"Ifysamsons", image:'assets/img/ifysamsons.jpeg' },
+    { id:'sweet&savory', name:"Sweet & Savory", image:'assets/img/sweet&savory.jpeg' },
+    { id:'3rplebite', name:"3riplebite", image:'assets/img/3rplebite.jpeg' }
+  ];
+
+  const OFFERS_TODAY = [
+    { id:'wingstop', name:'BGH all new Special', image:'assets/img/jrice.jpeg', badge:'Top Offer - Free Item' , rating:'4.8', reviews:'160+', time:'35 min' },
+    { id:'burger-king', name:'Get Sprite All around', image:'assets/img/sprite.jpg', badge:'Buy 1, Get 1 Free', rating:'3.5', reviews:'54', time:'21 min' },
+    { id:'dennys', name:"Indomie Served", image:'assets/img/indomie.jpeg', badge:'Buy 1, Get 1 Free', rating:'4.6', reviews:'91', time:'33 min' },
+    { id:'ono', name:'Drink up a bottle of Lacasera', image:'assets/img/lacasera.jpeg', badge:'Top Offer - Save $30', rating:'4.8', reviews:'1,500+', time:'52 min' },
+  ];
+  const OFFERS_LOVED = [
+    { id:'chipotle', name:'Babcock Wheat Bread', image:'assets/img/bread.jpeg', badge:'2 Offers Available', rating:'4.3', reviews:'60', time:'23 min' },
+    { id:'little-caesars', name:'Little Caesars', image:'assets/img/offers/caesars.jpg', badge:'Buy 1, Get 1 Free', rating:'4.9', reviews:'39', time:'31 min' },
+    { id:'jack', name:'Jack in the Box', image:'assets/img/offers/jack.jpg', badge:'Buy 1, Get 1 Free', rating:'4.6', reviews:'120+', time:'25 min' },
+    { id:'taco-bell', name:'Taco Bell', image:'assets/img/offers/tacobell.jpg', badge:'Free Item (Spend $20)', rating:'4.5', reviews:'120+', time:'18 min' },
+  ];
+
+  let ALL_PRODUCTS = [];
+
+  async function loadData() {
+    hydrateLocation();
+    renderStores();
+    renderOfferRow(offersTodayEl, OFFERS_TODAY);
+    renderOfferRow(offersLovedEl, OFFERS_LOVED);
+    try{ ALL_PRODUCTS = await listProducts(); }catch{ ALL_PRODUCTS = []; }
+  }
+
+  function renderStores(){
+    const q = searchEl.value.toLowerCase();
+    const filtered = STORES.filter(s => !q || s.name.toLowerCase().includes(q));
+    countEl.textContent = `${filtered.length} results`;
+    storesEmpty.style.display = filtered.length ? 'none' : 'block';
+    storesRow.innerHTML = filtered.map(s => `
+      <a class="store" href="store.html?storeId=${encodeURIComponent(s.id)}" title="${s.name}">
+        <img src="${s.image}" alt="${s.name}" onerror="this.src='assets/img/placeholder.png'" />
+        <span>${s.name}</span>
+      </a>
+    `).join('');
+  }
+
+  searchEl.addEventListener('input', renderStores);
+  document.getElementById('searchBtn').addEventListener('click', ()=>{
+    const first = firstSuggestionLink();
+    if (first) location.href = first;
+    else renderStores();
+  });
+  searchEl.addEventListener('input', onSuggestInput);
+  searchEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const s = searchEl.value.trim().toLowerCase(); const first = getSuggestions(s)[0]; if(first) location.href = `product.html?id=${encodeURIComponent(first.id)}`; else renderStores(); }});
+
+  const suggestEl = document.getElementById('searchSuggest');
+  function getSuggestionsCombined(q){
+    if (!q) return { stores: [], products: []};
+    const s = q.toLowerCase();
+    const stores = STORES.filter(st => st.name.toLowerCase().includes(s)).slice(0,5);
+    const products = (ALL_PRODUCTS||[]).filter(p=> (p.name||'').toLowerCase().includes(s)).slice(0,8);
+    return { stores, products };
+  }
+  function firstSuggestionLink(){
+    const q = searchEl.value.trim();
+    const { stores, products } = getSuggestionsCombined(q);
+    if (stores.length) return `store.html?storeId=${encodeURIComponent(stores[0].id)}`;
+    if (products.length) return `product.html?id=${encodeURIComponent(products[0].id)}`;
+    return '';
+  }
+  function onSuggestInput(){
+    const q = searchEl.value.trim();
+    const { stores, products } = getSuggestionsCombined(q);
+    if (!q || (!stores.length && !products.length)){ suggestEl.style.display='none'; suggestEl.innerHTML=''; return; }
+    suggestEl.style.display='block';
+    const storesHtml = stores.length ? [`<div class="head">Stores</div>`, ...stores.map(st=>`
+      <a href="store.html?storeId=${encodeURIComponent(st.id)}" role="option">
+        <img src="${st.image||'assets/img/placeholder.png'}" alt="${st.name}" onerror="this.src='assets/img/placeholder.png'" />
+        <div>
+          <div class="name">${st.name}</div>
+          <div class="meta">Store</div>
+        </div>
+      </a>
+    `)] : [];
+    const productsHtml = products.length ? [`<div class="head">Products</div>`, ...products.map(p=>`
+      <a href="product.html?id=${encodeURIComponent(p.id)}" role="option">
+        <img src="${p.imageUrl||'assets/img/placeholder.png'}" alt="${p.name}" onerror="this.src='assets/img/placeholder.png'" />
+        <div>
+          <div class="name">${p.name}</div>
+          <div class="meta">${p.storeId||''} · ${formatPrice(Number(p.price||0))}</div>
+        </div>
+      </a>
+    `)] : [];
+    suggestEl.innerHTML = [...storesHtml, ...productsHtml].join('');
+  }
+  document.addEventListener('click', (e)=>{ if(!suggestEl.contains(e.target) && e.target!==searchEl){ suggestEl.style.display='none'; }});
+  document.getElementById('resetFilters').addEventListener('click', ()=>{ searchEl.value=''; renderStores(); });
+  document.getElementById('change-addr').addEventListener('click', ()=>{ window.location.href = 'index.html'; });
+
+  function hydrateLocation(){
+    try {
+      const defaultAddr = 'Babcock University, Ilishan-Remo 121103, Ogun State';
+      const addr = localStorage.getItem('urbaneats_address') || defaultAddr;
+      pillText.textContent = addr;
+      document.getElementById('cityCrumb').textContent = addr.split(',')[0] || 'Your city';
+    } catch {}
+  }
+
+  loadData();
+</script>
+</body>
+</html>

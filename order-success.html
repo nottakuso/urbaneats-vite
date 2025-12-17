@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Placed - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container center">
+  <h1>Thank you!</h1>
+  <p>Your order has been placed. We will contact you shortly.</p>
+  <a class="btn btn-primary" href="menu.html">Back to Menu</a>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module" src="assets/js/app.js"></script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Store Dashboard - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .store-admin-wrap{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:1fr;gap:24px}
+    .store-card{padding:16px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+    .muted.small{font-size:12px;color:var(--muted)}
+    .input, select.input, textarea.input{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px}
+    textarea.input{min-height:90px}
+    .row{display:flex;gap:10px}
+    .right{justify-content:flex-end}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 10px}
+    .status-pill{background:#f1f5f9}
+    .status-paid{background:#dcfce7;border-color:#bbf7d0;color:#166534}
+    .status-pending{background:#fef9c3;border-color:#fef08a;color:#854d0e}
+
+    /* Store admin mobile tweaks */
+    @media (max-width: 768px){
+      .store-admin-wrap{padding:16px 10px;gap:16px}
+      .store-card{padding:14px}
+      .store-card h2{font-size:18px}
+      #store-title{font-size:22px}
+      #store-subtitle{font-size:13px}
+      .row{flex-wrap:wrap}
+      .row.right{justify-content:flex-start}
+      .store-card .btn{width:100%;text-align:center}
+      .table-wrap{margin:0 -10px;padding:0 10px}
+      #storeOrdersTable{min-width:100%;font-size:13px}
+      #storeOrdersTable th,#storeOrdersTable td{white-space:nowrap}
+    }
+
+    @media (max-width: 480px){
+      .store-admin-wrap{padding:12px 8px}
+      .store-card{border-radius:10px}
+      #pickupCodeForm .grid-2{grid-template-columns:1fr}
+      #pickupCodeForm .row.right{justify-content:flex-start}
+      #pickupCodeForm button[type="submit"]{width:100%}
+    }
+  </style>
+  <script>
+    // Client-side gate - must be logged in
+    try{
+      const raw = localStorage.getItem('urbaneats_user');
+      if (!raw){
+        const next = encodeURIComponent('store-admin.html');
+        location.replace(`login.html?next=${next}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <div id="header-action"></div>
+  </div>
+</header>
+
+<main class="store-admin-wrap">
+  <div>
+    <h1 id="store-title">Store Dashboard</h1>
+    <p class="muted" id="store-subtitle">Loading store profile…</p>
+  </div>
+
+  <section class="store-card">
+    <h2>Your Products</h2>
+    <p class="muted small">Manage the products for this store only.</p>
+    <form id="storeProductForm" class="form" enctype="multipart/form-data">
+      <div class="grid-2">
+        <div>
+          <label class="label">Product name</label>
+          <input class="input" name="name" required />
+        </div>
+        <div>
+          <label class="label">Price</label>
+          <input class="input" name="price" type="number" min="0" step="0.01" required />
+        </div>
+      </div>
+
+      <label class="label">About</label>
+      <textarea class="input" name="about" placeholder="Short description"></textarea>
+
+      <label class="label">Image</label>
+      <input class="input" type="file" name="imageFile" accept="image/*" />
+      <p class="muted small">Or paste an image URL:</p>
+      <input class="input" type="url" name="imageUrl" placeholder="https://..." />
+
+      <div class="row right">
+        <button class="btn btn-primary" type="submit">Save product</button>
+      </div>
+      <p id="storeProdMsg" class="small muted"></p>
+    </form>
+
+    <div id="storeProductsList" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:16px"></div>
+  </section>
+
+  <section class="store-card">
+    <h2>Your Orders</h2>
+    <p class="muted small">Orders that include items from this store.</p>
+    <div class="row" style="margin:8px 0">
+      <label class="label" style="min-width:80px">Filter</label>
+      <select id="storeOrdersFilter" class="input" style="max-width:220px">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="paid">Paid</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="overflow:auto;">
+      <table class="table" id="storeOrdersTable" style="min-width: 900px">
+        <thead>
+          <tr><th>Created</th><th>Customer</th><th>Items (this store)</th><th>Total (order)</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <h3 style="margin:0 0 8px;font-size:16px">Verify Pickup Code</h3>
+      <p class="muted small">Enter a customer's secret pickup code to view their order and confirm collection.</p>
+      <form id="pickupCodeForm" class="form" style="padding-top:8px">
+        <div class="grid-2">
+          <div>
+            <label class="label">Pickup code</label>
+            <input class="input" name="pickupCode" placeholder="e.g. 8-character code" required />
+          </div>
+          <div class="row right" style="align-items:flex-end;padding-bottom:4px">
+            <button class="btn btn-primary" type="submit">Find order</button>
+          </div>
+        </div>
+        <div id="pickupCodeResult" class="muted small"></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script type="module">
+  import { listProducts, addProduct, uploadImage, subscribeOrders, getUserProfile, deleteProduct, listOrders, updateOrderStatus } from './assets/js/auth.js';
+
+  // Header action (reuse profile/login button pattern)
+  (function(){
+    const wrap = document.getElementById('header-action');
+    let u=null; try{ u = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+    wrap.innerHTML = u ? `<a class="icon-btn" href="profile.html" title="${u.displayName||u.email}">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="currentColor"/><path d="M4 20.25A8.25 8.25 0 0 1 12.25 12h-.5A8.25 8.25 0 0 1 20 20.25c0 .966-.784 1.75-1.75 1.75H5.75A1.75 1.75 0 0 1 4 20.25Z" fill="currentColor"/></svg>
+    </a>` : `<a class="btn login" href="login.html">Login</a>`;
+  })();
+
+  const userRaw = localStorage.getItem('urbaneats_user');
+  let currentUser = null;
+  try{ currentUser = userRaw ? JSON.parse(userRaw) : null; }catch{}
+
+  const titleEl = document.getElementById('store-title');
+  const subtitleEl = document.getElementById('store-subtitle');
+
+  if (!currentUser) {
+    subtitleEl.textContent = 'You must be logged in to access this dashboard.';
+  }
+
+  let currentStoreId = null;
+
+  async function loadStoreProfile(){
+    if (!currentUser) return;
+    const profile = await getUserProfile(currentUser.uid);
+    const storeId = profile?.storeId || profile?.storeID;
+    if (!profile || !storeId) {
+      subtitleEl.textContent = 'No store is linked to this account yet. Please contact admin to set storeId on your user profile in Firestore.';
+      return;
+    }
+    currentStoreId = storeId;
+    titleEl.textContent = `Store Dashboard - ${profile.storeName || storeId}`;
+    subtitleEl.textContent = `Managing products and orders for store: ${profile.storeName || storeId}`;
+    await loadStoreProducts();
+    setupProductForm();
+    setupOrders();
+  }
+
+  let currentProducts = [];
+
+  async function loadStoreProducts(){
+    const wrap = document.getElementById('storeProductsList');
+    wrap.innerHTML = '<p class="muted small">Loading…</p>';
+    try{
+      const items = await listProducts();
+      currentProducts = (items||[]).filter(p=> p.storeId === currentStoreId);
+      if (!currentProducts.length){
+        wrap.innerHTML = '<p class="muted small">No products yet for this store.</p>';
+        return;
+      }
+      wrap.innerHTML = currentProducts.map(p=>`
+        <article class="card" style="overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff">
+          <img src="${p.imageUrl||'assets/img/placeholder.png'}" alt="${p.name}" style="width:100%;height:140px;object-fit:cover" onerror="this.src='assets/img/placeholder.png'" />
+          <div class="card-body" style="padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <h3 style="margin:0;font-size:16px">${p.name}</h3>
+              <span class="pill">₦${Number(p.price||0).toLocaleString()}</span>
+            </div>
+            <p class="muted small">${p.about||''}</p>
+            <div class="row" style="margin-top:8px;justify-content:flex-end;gap:8px">
+              <button class="btn btn-sm" data-edit-prod="${p.id}">Edit</button>
+              <button class="btn btn-sm danger" data-del-prod="${p.id}">Delete</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+      // Wire up edit/delete
+      wrap.querySelectorAll('button[data-del-prod]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this product?')) return;
+          btn.disabled = true; btn.textContent = 'Deleting…';
+          try { await deleteProduct(btn.dataset.delProd); } catch {}
+          await loadStoreProducts();
+        });
+      });
+      wrap.querySelectorAll('button[data-edit-prod]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.editProd;
+          const prod = currentProducts.find(p => p.id === id);
+          if (!prod) return;
+          const form = document.getElementById('storeProductForm');
+          if (!form) return;
+          form.querySelector('[name="name"]').value = prod.name || '';
+          form.querySelector('[name="price"]').value = prod.price || '';
+          form.querySelector('[name="about"]').value = prod.about || '';
+          const msg = document.getElementById('storeProdMsg');
+          if (msg) msg.textContent = 'Editing existing product. Submit to save changes.';
+          form.dataset.editingId = id;
+        });
+      });
+    }catch(e){
+      wrap.innerHTML = '<p class="muted small">Failed to load products.</p>';
+    }
+  }
+
+  function setupProductForm(){
+    const form = document.getElementById('storeProductForm');
+    const msg = document.getElementById('storeProdMsg');
+    if (!form) return;
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      msg.textContent = '';
+      const data = new FormData(form);
+      let imageUrl = data.get('imageUrl') || '';
+      const file = data.get('imageFile');
+      try{
+        if (file && file.size) {
+          msg.textContent = 'Uploading image…';
+          try{
+            imageUrl = await uploadImage(file);
+          }catch(_){
+            msg.textContent = 'Uploading failed, saving without image URL…';
+          }
+        }
+      }catch(err){ msg.textContent = 'Image processing failed, saving without image…'; }
+
+      const payload = {
+        name: data.get('name'),
+        price: data.get('price'),
+        storeId: currentStoreId,
+        about: data.get('about'),
+        imageUrl,
+      };
+      try{
+        const editingId = form.dataset.editingId || '';
+        if (editingId) {
+          // simple edit flow: delete old product then add new one
+          try { await deleteProduct(editingId); } catch {}
+        }
+        await addProduct(payload);
+        form.reset();
+        delete form.dataset.editingId;
+        msg.textContent = 'Saved!';
+        await loadStoreProducts();
+      }catch(err){
+        msg.textContent = err?.message || 'Failed to save';
+      }
+    });
+  }
+
+  // Orders for this store (derived from order.storeIds array)
+  let storeOrders = [];
+
+  function renderStoreOrders(){
+    const tbody = document.querySelector('#storeOrdersTable tbody');
+    const filter = document.getElementById('storeOrdersFilter').value || 'all';
+    const filtered = storeOrders.filter(o=> filter==='all' ? true : (o.status||'pending')===filter);
+    tbody.innerHTML = filtered.map(o=>{
+      const created = o.createdAt?.seconds ? new Date(o.createdAt.seconds*1000).toLocaleString() : '';
+      const itemsForStore = (o.items||[]).filter(i=> i.storeId === currentStoreId).map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ');
+      const total = o.totals?.total != null ? `₦${Number(o.totals.total).toLocaleString()}` : '';
+      const status = o.status || 'pending';
+      let statusClass = 'status-pill';
+      if (status === 'paid') statusClass += ' status-paid';
+      else if (status === 'pending' || status === 'confirmed') statusClass += ' status-pending';
+      return `<tr>
+        <td class="muted small">${created}</td>
+        <td>${o.contact?.name||''}<div class="muted small">${o.contact?.phone||''}</div></td>
+        <td>${itemsForStore}</td>
+        <td>${total}</td>
+        <td><span class="pill ${statusClass}">${status}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function setupOrders(){
+    const tbody = document.querySelector('#storeOrdersTable tbody');
+    tbody.innerHTML = '<tr><td colspan="5" class="muted small">Loading…</td></tr>';
+    const unsubscribe = subscribeOrders((arr)=>{
+      const all = (arr||[]).slice().sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+      storeOrders = all.filter(o=> Array.isArray(o.storeIds) && o.storeIds.includes(currentStoreId));
+      renderStoreOrders();
+    });
+    document.getElementById('storeOrdersFilter').addEventListener('change', renderStoreOrders);
+
+    // Pickup code verification
+    const codeForm = document.getElementById('pickupCodeForm');
+    const codeResult = document.getElementById('pickupCodeResult');
+    if (codeForm && codeResult){
+      codeForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        codeResult.textContent = '';
+        const fd = new FormData(codeForm);
+        const rawCode = String(fd.get('pickupCode')||'').trim().toUpperCase();
+        if (!rawCode){
+          codeResult.textContent = 'Enter a pickup code.';
+          return;
+        }
+        codeResult.textContent = 'Searching…';
+        try{
+          const allOrders = await listOrders();
+          const match = (allOrders||[]).find(o =>
+            o.pickupCode && String(o.pickupCode).toUpperCase() === rawCode &&
+            Array.isArray(o.storeIds) && o.storeIds.includes(currentStoreId)
+          );
+          if (!match){
+            codeResult.textContent = 'No order found for this pickup code for your store.';
+            return;
+          }
+          const itemsForStore = (match.items||[]).filter(i=> i.storeId === currentStoreId).map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ');
+          const created = match.createdAt?.seconds ? new Date(match.createdAt.seconds*1000).toLocaleString() : '';
+          const total = match.totals?.total != null ? `₦${Number(match.totals.total).toLocaleString()}` : '';
+          const status = match.status || 'pending';
+          codeResult.innerHTML = `
+            <p><strong>Order ID:</strong> ${match.id}</p>
+            <p><strong>Customer:</strong> ${match.contact?.name||''} (${match.contact?.phone||''})</p>
+            <p><strong>Created:</strong> ${created}</p>
+            <p><strong>Items (this store):</strong> ${itemsForStore||'-'}</p>
+            <p><strong>Total (order):</strong> ${total}</p>
+            <p><strong>Status:</strong> ${status}</p>
+            <div class="row" style="margin-top:8px;gap:8px">
+              <button type="button" class="btn" data-mark-confirm="${match.id}">Mark confirmed</button>
+            </div>
+          `;
+          const btn = codeResult.querySelector('button[data-mark-confirm]');
+          if (btn){
+            btn.addEventListener('click', async ()=>{
+              btn.disabled = true; btn.textContent = 'Updating…';
+              try{
+                await updateOrderStatus(match.id, 'confirmed');
+                codeResult.innerHTML += '<p class="muted small">Order marked as confirmed.</p>';
+              }catch(err){
+                btn.disabled = false; btn.textContent = 'Mark confirmed';
+                codeResult.innerHTML += '<p class="muted small">Failed to update order status.</p>';
+              }
+            });
+          }
+        }catch(err){
+          console.error('pickup code lookup failed', err);
+          codeResult.textContent = 'Failed to search orders. Please try again.';
+        }
+      });
+    }
+  }
+
+      loadStoreProfile();
+    </script>
+    </body>
+    </html>

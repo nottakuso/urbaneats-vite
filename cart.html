@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Cart - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a class="active" href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Your Cart</h1>
+  <div id="cart-items" class="cart-list"></div>
+  <div id="summary" class="summary"></div>
+  <div class="actions">
+    <a class="btn" href="menu.html">Continue Shopping</a>
+    <a id="checkoutBtn" class="btn btn-primary" href="checkout.html">Proceed to Checkout</a>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="admin.html">Admin</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module">
+  import { initNavCartCount, formatPrice, SETTINGS } from './assets/js/app.js';
+  import { getCart, setCart, cartTotals } from './assets/js/cart.js';
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  const itemsEl = document.getElementById('cart-items');
+  const summaryEl = document.getElementById('summary');
+  const btn = document.getElementById('checkoutBtn');
+
+  function render() {
+    const cart = getCart();
+
+    if (!cart.length) {
+      itemsEl.innerHTML = '<p>Your cart is empty.</p>';
+      summaryEl.innerHTML = '';
+      btn.classList.add('disabled');
+      btn.setAttribute('aria-disabled','true');
+      return;
+    }
+
+    btn.classList.remove('disabled');
+    btn.removeAttribute('aria-disabled');
+
+    itemsEl.innerHTML = cart.map((item, idx) => `
+      <div class="cart-item">
+        <div>
+          <h3>${item.name} ${item.variant ? '('+item.variant.name+')' : ''}</h3>
+          ${item.addons && item.addons.length ? `<p class="muted">Add-ons: ${item.addons.map(a=>a.name).join(', ')}</p>` : ''}
+          <p class="muted">Unit: ${formatPrice(item.basePrice + (item.addons||[]).reduce((s,a)=>s+a.price,0))}</p>
+        </div>
+        <div class="cart-controls">
+          <button class="btn btn-sm" data-action="dec" data-index="${idx}">-</button>
+          <span class="qty">${item.qty}</span>
+          <button class="btn btn-sm" data-action="inc" data-index="${idx}">+</button>
+          <button class="btn btn-sm danger" data-action="rm" data-index="${idx}">Remove</button>
+        </div>
+      </div>
+    `).join('');
+
+    const totals = cartTotals();
+    summaryEl.innerHTML = `
+      <div class="summary-row"><span>Subtotal</span><span>${formatPrice(totals.subtotal)}</span></div>
+      <div class="summary-row"><span>Tax (${Math.round(SETTINGS.taxRate*100)}%)</span><span>${formatPrice(totals.tax)}</span></div>
+      <div class="summary-row"><span>Delivery</span><span>${formatPrice(totals.deliveryFee)}</span></div>
+      <div class="summary-row total"><span>Total</span><span>${formatPrice(totals.total)}</span></div>
+    `;
+
+    itemsEl.querySelectorAll('button').forEach(b => b.addEventListener('click', onAction));
+  }
+
+  function onAction(e){
+    const idx = parseInt(e.currentTarget.dataset.index, 10);
+    const action = e.currentTarget.dataset.action;
+    const cart = getCart();
+    if (action === 'inc') cart[idx].qty += 1;
+    if (action === 'dec') cart[idx].qty = Math.max(1, cart[idx].qty - 1);
+    if (action === 'rm') cart.splice(idx, 1);
+    setCart(cart);
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>

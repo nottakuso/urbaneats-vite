@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div id="product" class="product"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module">
+  import { initNavCartCount, formatPrice } from './assets/js/app.js';
+  import { addToCart } from './assets/js/cart.js';
+  import { listProducts } from './assets/js/auth.js';
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  const container = document.getElementById('product');
+
+  let product;
+
+  async function loadProduct() {
+    const items = await listProducts();
+    product = items.find(p => p.id === id) || items[0];
+    render();
+  }
+
+  function render() {
+    if (!product) return;
+
+    const variants = product.variants || [];
+    const addons = product.addons || [];
+
+    container.innerHTML = `
+      <div class="product-grid">
+        <img class="product-image" src="${product.imageUrl || product.image || 'assets/img/placeholder.png'}" alt="${product.name}" onerror="this.src='assets/img/placeholder.png'" />
+        <div>
+          <h1>${product.name}</h1>
+          <p class="muted">${product.description || ''}</p>
+
+          ${variants.length ? `
+            <label class="label">Choose a size</label>
+            <select id="variant" class="input">
+              ${variants.map(v => `<option value="${v.id}" data-price="${v.price}">${v.name} - ${formatPrice(v.price)}</option>`).join('')}
+            </select>
+          ` : `<p><strong>Price:</strong> ${formatPrice(product.price)}</p>`}
+
+          ${addons.length ? `
+            <div class="addons">
+              <label class="label">Add-ons</label>
+              ${addons.map(a => `
+                <label class="checkbox">
+                  <input type="checkbox" value="${a.id}" data-price="${a.price}"> ${a.name} (+${formatPrice(a.price)})
+                </label>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div class="qty">
+            <button id="dec" class="btn btn-sm" aria-label="Decrease">-</button>
+            <input id="qty" class="input" type="number" value="1" min="1" />
+            <button id="inc" class="btn btn-sm" aria-label="Increase">+</button>
+          </div>
+
+          <button id="add" class="btn btn-primary">Add to Cart</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('inc').onclick = () => {
+      const q = document.getElementById('qty');
+      q.value = (parseInt(q.value||'1',10) + 1);
+    };
+    document.getElementById('dec').onclick = () => {
+      const q = document.getElementById('qty');
+      q.value = Math.max(1, parseInt(q.value||'1',10) - 1);
+    };
+    document.getElementById('add').onclick = onAdd;
+  }
+
+  function onAdd() {
+    const qty = parseInt(document.getElementById('qty').value, 10) || 1;
+    const variantSel = document.getElementById('variant');
+
+    const selectedVariant = variantSel ? {
+      id: variantSel.value,
+      name: variantSel.options[variantSel.selectedIndex].text.split(' - ')[0],
+      price: parseFloat(variantSel.options[variantSel.selectedIndex].dataset.price)
+    } : null;
+
+    const addonInputs = Array.from(document.querySelectorAll('.addons input[type="checkbox"]:checked'));
+    const selectedAddons = addonInputs.map(i => ({ id: i.value, name: i.parentElement.textContent.trim().split(' (+')[0], price: parseFloat(i.dataset.price) }));
+
+    addToCart({
+      id: product.id,
+      name: product.name,
+      basePrice: selectedVariant ? selectedVariant.price : product.price,
+      variant: selectedVariant ? { id: selectedVariant.id, name: selectedVariant.name } : null,
+      addons: selectedAddons,
+      qty
+    });
+
+    window.location.href = 'cart.html';
+  }
+
+  loadProduct();
+</script>
+</body>
+</html>

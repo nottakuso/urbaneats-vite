@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delivery - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .delivery-wrap{max-width:1100px;margin:0 auto;padding:24px 16px}
+    .delivery-grid{display:grid;grid-template-columns:1fr;gap:16px}
+    .card.delivery{padding:16px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    /* Offer card styling (dark style similar to screenshot) */
+    .offers{display:grid;grid-template-columns:1fr;gap:14px}
+    .offer-card{background:#111;color:#fff;border-radius:16px;padding:14px 14px 12px;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .offer-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .offer-left{display:flex;align-items:center;gap:10px}
+    .avatar{width:34px;height:34px;border-radius:50%;background:#333;flex:0 0 34px;overflow:hidden}
+    .driver-name{font-weight:700}
+    .rating{font-size:12px;color:#fbbf24}
+    .meta{font-size:12px;color:#cbd5e1}
+    .price{font-weight:800;font-size:22px;margin:10px 0}
+    .actions{display:flex;gap:10px}
+    .btn-decline{flex:1;background:#2a2a2a;color:#e2e8f0;border:none;border-radius:10px;padding:10px 12px}
+    .btn-accept{flex:1;display:flex;border:none;border-radius:10px;overflow:hidden}
+    .btn-accept span{flex:1;padding:10px 0;text-align:center}
+    .btn-accept .left{background:#ffffff;color:#0f172a;width:10%}
+    .btn-accept .right{background:#ffffff;color:#0f172a}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:4px 10px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .muted.small{font-size:12px;color:var(--muted)}
+    @media (min-width: 700px){ .offers{grid-template-columns:1fr 1fr} }
+  </style>
+  <script>
+    // Require login for couriers (early redirect)
+    try{
+      const raw = localStorage.getItem('urbaneats_user');
+      if (!raw){
+        const next = encodeURIComponent('delivery.html');
+        location.replace(`courier-login.html?next=${next}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="order-status.html">Orders</a>
+    </nav>
+  </div>
+</header>
+
+<main class="delivery-wrap">
+  <h1>Delivery Board</h1>
+  <p class="muted">See orders that are confirmed or paid. Accept to assign yourself, or decline to unassign.</p>
+
+  <section class="card delivery">
+    <div class="row">
+      <label class="label" style="min-width:80px">Filter</label>
+      <select id="deliveryFilter" class="input" style="max-width:240px">
+        <option value="available">Available (unassigned)</option>
+        <option value="mine">My Assignments</option>
+        <option value="all">All confirmed/paid</option>
+      </select>
+    </div>
+
+    <div id="offersList" class="offers" style="margin-top:8px"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+        <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+      </div>
+      <nav class="footer-col">
+        <h4>Explore</h4>
+        <a href="menu.html">Menu</a>
+        <a href="#">Offers</a>
+        <a href="#">About</a>
+      </nav>
+      <nav class="footer-col">
+        <h4>Support</h4>
+        <a href="#">Help Center</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+      <div class="footer-col">
+        <h4>Get in touch</h4>
+        <p class="muted small">Email: urbaneats@example.com</p>
+        <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Urbaneats</p>
+    </div>
+  </footer>
+  
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script type="module">
+  import { subscribeOrders, assignCourier, unassignCourier, getUserProfile, updateDeliveryPhase } from './assets/js/auth.js';
+
+  // Current courier info
+  let courier = { uid: '', name: '', phone: '' };
+  try{
+    const u = JSON.parse(localStorage.getItem('urbaneats_user')||'null');
+    if (u) courier = { uid: u.uid||'', name: (u.displayName||u.email||'') , phone: '' };
+  }catch{}
+
+  // Enforce courier role
+  (async function enforceCourier(){
+    try{
+      const raw = localStorage.getItem('urbaneats_user');
+      const u = raw ? JSON.parse(raw) : null;
+      if (!u){
+        location.replace('courier-login.html?next=delivery.html');
+        return;
+      }
+      const profile = await getUserProfile(u.uid);
+      if (!profile || profile.role !== 'courier'){
+        alert('Courier access required');
+        location.replace('courier-login.html?next=delivery.html');
+        return;
+      }
+      // Use profile phone if available
+      if (profile.phone) courier.phone = profile.phone;
+    }catch{}
+  })();
+
+  const listEl = document.getElementById('offersList');
+  const filterEl = document.getElementById('deliveryFilter');
+  let allOrders = [];
+
+  function isDeliverable(o){
+    const s = (o.status||'').toLowerCase();
+    return s==='confirmed' || s==='paid' || s==='assigned';
+  }
+
+  function formatItems(o){
+    try{ return (o.items||[]).map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', '); }catch{ return ''; }
+  }
+
+  function render(){
+    const mode = filterEl.value;
+    const list = allOrders.filter(isDeliverable).filter(o=>{
+      if (mode==='all') return true;
+      const hasCourier = !!o.courier?.uid;
+      const mine = hasCourier && o.courier.uid === courier.uid;
+      if (mode==='available') return !hasCourier && (o.status==='confirmed' || o.status==='paid');
+      if (mode==='mine') return mine;
+      return true;
+    });
+    listEl.innerHTML = list.map(o=>{
+      const created = o.createdAt?.seconds ? new Date(o.createdAt.seconds*1000).toLocaleString() : '';
+      const total = o.totals?.total != null ? `₦${Number(o.totals.total).toLocaleString()}` : '';
+      const items = formatItems(o);
+      const assignedToMe = o.courier?.uid === courier.uid;
+      const phase = o.deliveryPhase || '';
+      // ETA/distance removed by request
+      const driverName = assignedToMe ? (courier.name||'You') : (o.contact?.name||'Customer');
+      const rating = '4.9 ★';
+      const rides = '(1137 deliveries)';
+      const header = `
+        <div class="offer-top">
+          <div class="offer-left">
+            <div class="avatar"></div>
+            <div>
+              <div class="driver-name">${driverName}</div>
+              <div class="rating">${rating} <span class="meta">${rides}</span></div>
+              <div class="meta">${o.contact?.address||''}</div>
+            </div>
+          </div>
+        </div>`;
+      let actionsHtml = '';
+      if (!o.courier?.uid && (o.status==='confirmed' || o.status==='paid')){
+        actionsHtml = `
+          <div class="actions">
+            <button class="btn-decline" data-decline="${o.id}">Decline</button>
+            <button class="btn-accept" data-accept="${o.id}"><span class="left"> </span><span class="right">Accept</span></button>
+          </div>`;
+      } else if (assignedToMe){
+        actionsHtml = `
+          <div class="actions">
+            <button class="btn-decline" data-decline="${o.id}">Decline</button>
+            <button class="btn-accept" data-phase="delivered" data-id="${o.id}"><span class="left">Ready</span><span class="right">Delivered</span></button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" data-phase="pickup_confirmed" data-id="${o.id}" ${phase==='pickup_confirmed'?'disabled':''}>Pickup confirmed</button>
+            <button class="btn" data-phase="picked_up" data-id="${o.id}" ${phase==='picked_up'?'disabled':''}>Picked up</button>
+            <button class="btn" data-phase="ready_for_delivery" data-id="${o.id}" ${phase==='ready_for_delivery'?'disabled':''}>Ready for delivery</button>
+          </div>`;
+      } else {
+        actionsHtml = '<span class="muted small">No action</span>';
+      }
+      return `
+        <article class="offer-card" aria-label="order offer">
+          ${header}
+          <div class="price">${total||''}</div>
+          <div class="meta">${items}</div>
+          ${actionsHtml}
+          <div class="meta" style="margin-top:6px">Status: ${o.status||''} ${o.deliveryPhase? '• '+o.deliveryPhase : ''}</div>
+          <div class="muted small">Order ID: ${o.id} • ${created}</div>
+        </article>
+      `;
+    }).join('');
+    // Wire actions
+    listEl.querySelectorAll('button[data-accept]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const old = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<span class="left"></span><span class="right">Accepting…</span>';
+        try { await assignCourier(btn.dataset.accept, courier); }
+        catch (e) { alert(e?.message || 'Failed to accept'); }
+        btn.disabled = false; btn.innerHTML = old;
+      });
+    });
+    listEl.querySelectorAll('button[data-decline]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Declining…';
+        try { await unassignCourier(btn.dataset.decline); }
+        catch (e) { alert(e?.message || 'Failed to decline'); }
+        btn.disabled = false; btn.textContent = old;
+      });
+    });
+    listEl.querySelectorAll('button[data-phase]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const phase = btn.getAttribute('data-phase');
+        const old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Updating…';
+        try { await updateDeliveryPhase(id, phase); }
+        catch (e) { alert(e?.message || 'Failed to update'); }
+        btn.textContent = old; btn.disabled = false;
+      });
+    });
+  }
+
+  filterEl.addEventListener('change', render);
+
+  // Live updates
+  const unsubscribe = subscribeOrders((orders)=>{
+    allOrders = orders;
+    render();
+  });
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', ()=>{ try{ unsubscribe && unsubscribe(); }catch{} });
+</script>
+</body>
+</html>

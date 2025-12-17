@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .admin-wrap{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:1fr;gap:24px}
+    .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .card.admin{padding:16px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+    .muted.small{font-size:12px;color:var(--muted)}
+    .input, select.input, textarea.input{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px}
+    textarea.input{min-height:90px}
+    .row{display:flex;gap:10px}
+    .right{justify-content:flex-end}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 10px}
+    .danger{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+    .file-input{display:block}
+    @media (max-width: 900px){ .admin-grid{grid-template-columns:1fr} }
+  </style>
+  <script>
+    // Client-side gate - must be logged in
+    try{
+      const raw = localStorage.getItem('urbaneats_user');
+      if (!raw){
+        const next = encodeURIComponent('admin.html');
+        location.replace(`login.html?next=${next}`);
+      }
+      const u = JSON.parse(raw);
+      const isAdmin = u && u.email && u.email.toLowerCase() === 'chijas02@gmail.com';
+      if (!isAdmin){
+        alert('Admin access required');
+        location.replace('menu.html');
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<div id="page-loader" class="page-loader" aria-live="polite" aria-busy="true">
+  <img src="assets/img/logourbaneats.png" alt="Urbaneats logo" />
+  <p>Don't stress when we can help</p>
+</div>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <div id="header-action"></div>
+  </div>
+</header>
+
+<main class="admin-wrap">
+  <h1>Admin Dashboard</h1>
+  <p class="muted small">Store admins (e.g. Waffledom) should log in via the regular Login page and then use the Store Dashboard. Ask the central admin for your store login credentials.</p>
+
+  <section class="admin-grid">
+    <div class="card admin">
+      <h2>Users</h2>
+      <p class="muted small">List of registered users.</p>
+      <div class="table-wrap" style="overflow:auto;">
+        <table class="table" id="usersTable" style="min-width: 900px">
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>UID</th><th>Created</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card admin">
+      <h2>Add product</h2>
+      <form id="productForm" class="form" enctype="multipart/form-data">
+        <label class="label">Product name</label>
+        <input class="input" name="name" required />
+
+        <label class="label">Price</label>
+        <input class="input" name="price" type="number" min="0" step="0.01" required />
+
+        <label class="label">Store</label>
+        <select class="input" name="storeId" required>
+          <option value="waffledom">Waffledom</option>
+          <option value="superstore">Superstore</option>
+          <option value="onile-ebi">Onile ebi</option>
+          <option value="flakkys">Flakky's</option>
+          <option value="bgh">Guest House</option>
+        </select>
+
+        <label class="label">About</label>
+        <textarea class="input" name="about" placeholder="Short description"></textarea>
+
+        <label class="label">Image</label>
+        <input class="input file-input" type="file" name="imageFile" accept="image/*" />
+        <p class="muted small">You can also paste an image URL:</p>
+        <input class="input" type="url" name="imageUrl" placeholder="https://..." />
+
+        <div class="row right">
+          <button class="btn btn-primary" type="submit">Save product</button>
+        </div>
+        <p id="prodMsg" class="small muted"></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="card admin">
+    <h2>Delivery Agents</h2>
+    <p class="muted small">Couriers who signed up.</p>
+    <div class="table-wrap" style="overflow:auto;">
+      <table class="table" id="couriersTable" style="min-width: 900px">
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>UID</th><th>Created</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card admin">
+    <h2>Products</h2>
+    <div id="productsList" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+  </section>
+
+  <section class="card admin">
+    <h2>Orders</h2>
+    <p class="muted small">Monitor incoming orders and confirm when accepted. Users will see confirmation instantly.</p>
+    <div class="row" style="margin:8px 0">
+      <label class="label" style="min-width:80px">Filter</label>
+      <select id="ordersFilter" class="input" style="max-width:220px">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="paid">Paid</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="overflow:auto;">
+      <table class="table" id="ordersTable" style="min-width: 1000px">
+        <thead>
+          <tr><th>Created</th><th>Customer</th><th>Address</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script type="module">
+  import { listUsers, listCouriers, addProduct, listProducts, deleteProduct, updateOrderStatus, uploadImage, subscribeOrders } from './assets/js/auth.js';
+
+  // Header action
+  (function(){
+    const wrap = document.getElementById('header-action');
+    let u=null; try{ u = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+    wrap.innerHTML = u ? `<a class="icon-btn" href="profile.html" title="${u.displayName||u.email}">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="currentColor"/><path d="M4 20.25A8.25 8.25 0 0 1 12.25 12h-.5A8.25 8.25 0 0 1 20 20.25c0 .966-.784 1.75-1.75 1.75H5.75A1.75 1.75 0 0 1 4 20.25Z" fill="currentColor"/></svg>
+    </a>` : `<a class="btn login" href="login.html">Login</a>`;
+  })();
+
+  // Users
+  // Hide loader on load
+  window.addEventListener('load', ()=>{
+    const l = document.getElementById('page-loader');
+    if (l) setTimeout(()=> l.classList.add('hide'), 200);
+  });
+
+  async function loadUsers(){
+    const tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Loading…</td></tr>';
+    try{
+      const users = await listUsers();
+      tbody.innerHTML = users.map(u=>{
+        let created = '';
+        const c = u.createdAt;
+        try { if (c && c.seconds) created = new Date(c.seconds*1000).toLocaleString(); } catch {}
+        return `<tr><td>${u.name||''}</td><td>${u.email||''}</td><td>${u.phone||''}</td><td class="muted small">${u.uid||u.id||''}</td><td class="muted small">${created}</td></tr>`;
+      }).join('');
+      if(!users.length) tbody.innerHTML = '<tr><td colspan="5" class="muted">No users yet</td></tr>';
+    }catch(e){ tbody.innerHTML = `<tr><td colspan="4" class="muted">Failed to load users</td></tr>`; }
+  }
+
+  async function loadCouriers(){
+    const tbody = document.querySelector('#couriersTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+    try{
+      const users = await listCouriers();
+      tbody.innerHTML = users.map(u=>{
+        let created = '';
+        const c = u.createdAt;
+        try { if (c && c.seconds) created = new Date(c.seconds*1000).toLocaleString(); } catch {}
+        return `<tr><td>${u.name||''}</td><td>${u.email||''}</td><td>${u.phone||''}</td><td class="muted small">${u.uid||u.id||''}</td><td class="muted small">${created}</td></tr>`;
+      }).join('');
+      if(!users.length) tbody.innerHTML = '<tr><td colspan="5" class="muted">No delivery agents yet</td></tr>';
+    }catch(e){ tbody.innerHTML = `<tr><td colspan="5" class="muted">Failed to load delivery agents</td></tr>`; }
+  }
+
+  // Products
+  async function loadProducts(){
+    const wrap = document.getElementById('productsList');
+    wrap.innerHTML = '<p class="muted">Loading…</p>';
+    try{
+      const items = await listProducts();
+      wrap.innerHTML = items.map(p=>`
+        <article class="card" style="overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff">
+          <img src="${p.imageUrl||'assets/img/placeholder.png'}" alt="${p.name}" style="width:100%;height:140px;object-fit:cover" onerror="this.src='assets/img/placeholder.png'" />
+          <div class="card-body" style="padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <h3 style="margin:0;font-size:16px">${p.name}</h3>
+              <span class="pill">₦${Number(p.price||0).toLocaleString()}</span>
+            </div>
+            <div class="muted small" style="margin-top:4px">Store: ${p.storeId||'-'}</div>
+            <p class="muted small">${p.about||''}</p>
+            <button class="btn danger" data-del="${p.id}">Delete</button>
+          </div>
+        </article>
+      `).join('');
+      wrap.querySelectorAll('button[data-del]').forEach(btn=> btn.addEventListener('click', async ()=>{
+        btn.disabled = true; btn.textContent = 'Deleting…';
+        try{ await deleteProduct(btn.dataset.del); }catch{}
+        await loadProducts();
+      }));
+    }catch(e){
+      wrap.innerHTML = '<p class="muted">Failed to load products</p>';
+    }
+  }
+
+  // Add product
+  const form = document.getElementById('productForm');
+  const msg = document.getElementById('prodMsg');
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent = '';
+    const data = new FormData(form);
+    // Prefer file upload if provided; fall back to URL field
+    let imageUrl = data.get('imageUrl') || '';
+    const file = data.get('imageFile');
+    async function compressToDataUrl(file){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = () => { img.src = reader.result; };
+        reader.onerror = reject;
+        img.onload = () => {
+          const maxW = 900; const maxH = 900;
+          let { width:w, height:h } = img;
+          const ratio = Math.min(maxW/w, maxH/h, 1);
+          w = Math.round(w*ratio); h = Math.round(h*ratio);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          try { resolve(canvas.toDataURL('image/jpeg', 0.7)); } catch(e){ reject(e); }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    try{
+      if (file && file.size) {
+        msg.textContent = 'Uploading image…';
+        try{
+          imageUrl = await uploadImage(file); // uses Cloudinary if configured
+        }catch(_){
+          msg.textContent = 'Uploading failed, embedding image…';
+          imageUrl = await compressToDataUrl(file); // store as data URL inside Firestore
+        }
+      }
+    }catch(err){ msg.textContent = 'Image processing failed, saving without image…'; }
+    const payload = {
+      name: data.get('name'),
+      price: data.get('price'),
+      storeId: data.get('storeId'),
+      about: data.get('about'),
+      imageUrl,
+    };
+    try{
+      await addProduct(payload);
+      form.reset();
+      msg.textContent = 'Saved!';
+      await loadProducts();
+    }catch(err){
+      msg.textContent = err?.message || 'Failed to save';
+    }
+  });
+
+  await loadUsers();
+  await loadCouriers();
+  await loadProducts();
+
+  // Orders (live updates)
+  const ordersTbody = document.querySelector('#ordersTable tbody');
+  ordersTbody.innerHTML = '<tr><td colspan="8" class="muted">Loading…</td></tr>';
+  let currentOrders = [];
+
+  function renderOrders(){
+    const tbody = document.querySelector('#ordersTable tbody');
+    const filter = document.getElementById('ordersFilter').value || 'all';
+    const filtered = currentOrders.filter(o=> filter==='all' ? true : (o.status||'pending')===filter);
+    tbody.innerHTML = filtered.map(o=>{
+      const created = o.createdAt?.seconds ? new Date(o.createdAt.seconds*1000).toLocaleString() : '';
+      const items = (o.items||[]).map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ');
+      const total = o.totals?.total != null ? `₦${Number(o.totals.total).toLocaleString()}` : '';
+      const status = o.status || 'pending';
+      let paymentCell = '';
+      if (o.paymentSignal && (o.paymentSignal.seconds||o.paymentSignal.nanoseconds)){
+        const ts = o.paymentSignal.seconds ? new Date(o.paymentSignal.seconds*1000).toLocaleString() : '';
+        paymentCell = `<span class="pill">Signaled</span><div class=\"muted small\">${ts}</div>`;
+      } else {
+        paymentCell = '<span class="muted small">—</span>';
+      }
+      let action = '';
+      if (status === 'pending') action = `<button class="btn" data-confirm="${o.id}">Confirm</button>`;
+      else if (status === 'confirmed') action = `<button class="btn" data-paid="${o.id}">Mark Paid</button>`;
+      else if (status === 'paid') action = '<span class="pill">Paid</span>';
+      action += ` <button class="btn danger" data-del-order="${o.id}">Delete</button>`;
+      return `<tr>
+        <td class="muted small">${created}</td>
+        <td>${o.contact?.name||''}<div class="muted small">${o.contact?.phone||''}</div></td>
+        <td>${o.contact?.address||''}</td>
+        <td>${items}</td>
+        <td>${total}</td>
+        <td>${paymentCell}</td>
+        <td>${status}</td>
+        <td>${action}</td>
+      </tr>`;
+    }).join('');
+    if(!filtered.length) tbody.innerHTML = '<tr><td colspan="8" class="muted">No orders</td></tr>';
+    tbody.querySelectorAll('button[data-confirm]').forEach(btn=> btn.addEventListener('click', async ()=>{
+      btn.disabled = true; btn.textContent = 'Confirming…';
+      try{ await updateOrderStatus(btn.dataset.confirm, 'confirmed'); }catch{}
+      // No manual reload; snapshot will refresh UI
+    }));
+    tbody.querySelectorAll('button[data-paid]').forEach(btn=> btn.addEventListener('click', async ()=>{
+      btn.disabled = true; btn.textContent = 'Updating…';
+      try{ await updateOrderStatus(btn.dataset.paid, 'paid'); }catch{}
+    }));
+    tbody.querySelectorAll('button[data-del-order]').forEach(btn=> btn.addEventListener('click', async ()=>{
+      if (!confirm('Delete this order permanently?')) return;
+      btn.disabled = true; btn.textContent = 'Deleting…';
+      try{ const { deleteOrder } = await import('./assets/js/auth.js'); await deleteOrder(btn.dataset.delOrder); }catch{}
+    }));
+  }
+
+  // Subscribe to Firestore orders collection for live updates
+  const unsubscribeOrders = subscribeOrders((arr)=>{
+    // Sort newest first
+    currentOrders = (arr||[]).slice().sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    renderOrders();
+  });
+
+  document.getElementById('ordersFilter').addEventListener('change', renderOrders);
+</script>
+</body>
+</html>

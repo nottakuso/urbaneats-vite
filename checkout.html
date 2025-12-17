@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Checkout</h1>
+  <div id="order-summary" class="summary"></div>
+
+  <form id="checkout-form" class="form">
+    <div id="courier-fields">
+      <div class="grid-2">
+        <div>
+          <label class="label">Full Name(Note: should match sender's account name)</label>
+          <input class="input" name="name" required />
+        </div>
+        <div>
+          <label class="label">Phone</label>
+          <input class="input" name="phone" required />
+        </div>
+      </div>
+    </div>
+    <fieldset class="field-group delivery-options">
+      <legend class="label">Delivery method</legend>
+      <label class="label delivery-option" style="font-weight: normal;">
+        <input type="radio" name="deliveryMethod" value="courier" checked>
+        Courier delivery (delivered to your location)
+      </label>
+      <label class="label delivery-option" style="font-weight: normal;">
+        <input type="radio" name="deliveryMethod" value="pickup">
+        Easy pickup (collect your order from the pickup point)
+      </label>
+    </fieldset>
+    <div id="courier-extra-fields">
+      <label class="label">Address</label>
+      <select class="input" name="address" required>
+      <option value="">Select a location…</option>
+      <option>Emerald hall</option>
+      <option>Samuel Akande</option>
+      <option>Neal Wilson</option>
+      <option>Nelson mandela</option>
+      <option>Gideon Troopers</option>
+      <option>Topaz hall</option>
+      <option>Bethel hall</option>
+      <option>Sapphire hall</option>
+      <option>Platinum</option>
+      <option>Crystal</option>
+      <option>Diamond</option>
+      <option>F.A.D</option>
+      <option>Busa hut</option>
+      <option>Queen esther</option>
+      <option>Queen esther (Gazebo)</option>
+      <option>Stadium</option>
+      <option>SAT</option>
+      <option>WRA</option>
+      <option>BBS</option>
+      <option>New Horizon</option>
+      <option>Amphitheatre</option>
+      <option>Bucodel</option>
+      <option>Academic Building</option>
+      <option>Guest House</option>
+    </select>
+
+      <label class="label">Notes</label>
+      <textarea class="input" name="notes" rows="3" placeholder="e.g., no tomatoes"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Place Order</button>
+    </div>
+    <p class="muted small">By placing an order you agree to our Terms & Privacy.</p>
+  </form>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="admin.html">Admin</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module">
+  import { initNavCartCount, formatPrice, SETTINGS } from './assets/js/app.js';
+  import { getCart, cartTotals, clearCart } from './assets/js/cart.js';
+  import { createOrder } from './assets/js/auth.js';
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  const summaryEl = document.getElementById('order-summary');
+  const form = document.getElementById('checkout-form');
+  const addressSelect = form.querySelector('select[name="address"]');
+  const courierFields = document.getElementById('courier-fields');
+  const courierExtraFields = document.getElementById('courier-extra-fields');
+  const nameInput = form.querySelector('input[name="name"]');
+  const phoneInput = form.querySelector('input[name="phone"]');
+
+  function getSelectedDeliveryMethod(){
+    const checked = form.querySelector('input[name="deliveryMethod"]:checked');
+    return checked ? checked.value : 'courier';
+  }
+
+  function renderSummary(){
+    const cart = getCart();
+    if (!cart.length) {
+      summaryEl.innerHTML = '<p>Your cart is empty.</p>';
+      form.style.display = 'none';
+      return;
+    }
+    const method = getSelectedDeliveryMethod();
+    let totals = cartTotals();
+    if (method === 'pickup') {
+      totals = {
+        ...totals,
+        deliveryFee: 0,
+        total: totals.subtotal + totals.tax,
+      };
+    }
+    summaryEl.innerHTML = `
+      <div class="summary-row"><span>Items</span><span>${cart.map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ')}</span></div>
+      <div class="summary-row"><span>Subtotal</span><span>${formatPrice(totals.subtotal)}</span></div>
+      <div class="summary-row"><span>Tax (${Math.round(SETTINGS.taxRate*100)}%)</span><span>${formatPrice(totals.tax)}</span></div>
+      <div class="summary-row"><span>Delivery</span><span>${formatPrice(totals.deliveryFee)}</span></div>
+      <div class="summary-row total"><span>Total</span><span>${formatPrice(totals.total)}</span></div>
+    `;
+  }
+
+  function updateAddressRequirement(){
+    const method = getSelectedDeliveryMethod();
+    if (method === 'pickup') {
+      if (addressSelect) addressSelect.required = false;
+      if (courierFields) courierFields.style.display = 'none';
+      if (courierExtraFields) courierExtraFields.style.display = 'none';
+      if (nameInput) nameInput.required = false;
+      if (phoneInput) phoneInput.required = false;
+    } else {
+      if (addressSelect) addressSelect.required = true;
+      if (courierFields) courierFields.style.display = '';
+      if (courierExtraFields) courierExtraFields.style.display = '';
+      if (nameInput) nameInput.required = true;
+      if (phoneInput) phoneInput.required = true;
+    }
+  }
+
+  form.querySelectorAll('input[name="deliveryMethod"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      updateAddressRequirement();
+      renderSummary();
+    });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    const items = getCart();
+    if (!items.length) { alert('Your cart is empty.'); return; }
+    // If user chose easy pickup, redirect to the dedicated pickup checkout page
+    if (data.deliveryMethod === 'pickup') {
+      window.location.href = 'pickup-checkout.html';
+      return;
+    }
+
+    let totals = cartTotals();
+    const storeIds = Array.from(new Set((items||[]).map(i=> i.storeId).filter(Boolean)));
+    let user = null; try{ user = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+    let orderId = '';
+    try {
+      orderId = await createOrder({
+        user: user || {},
+        items,
+        totals,
+        storeIds,
+        contact: { name: data.name, phone: data.phone, address: data.address, notes: data.notes||'' },
+        deliveryMethod: data.deliveryMethod || 'courier',
+        status: 'pending',
+      });
+    } catch (err) {
+      console.error('createOrder failed', err);
+      alert(`Failed to place order. Please try again.\n${err?.message || ''}`);
+      return;
+    }
+    clearCart();
+    window.location.href = `order-status.html?orderId=${encodeURIComponent(orderId)}`;
+  });
+
+  updateAddressRequirement();
+  renderSummary();
+</script>
+</body>
+</html>

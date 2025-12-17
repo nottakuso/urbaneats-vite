@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Profile - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .order-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .order-modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .order-modal h3 {
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 12px;
+    }
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .order-total {
+      font-weight: bold;
+      font-size: 1.1em;
+      margin-top: 16px;
+      padding-top: 8px;
+      border-top: 2px solid #333;
+    }
+    .order-status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-weight: 500;
+      margin: 8px 0;
+    }
+    .status-pending { background: #ffeb3b; color: #000; }
+    .status-confirmed { background: #2196f3; color: white; }
+    .status-preparing { background: #4caf50; color: white; }
+    .status-ready { background: #ff9800; color: white; }
+    .status-delivered { background: #795548; color: white; }
+    .status-cancelled { background: #f44336; color: white; }
+    .close-modal {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+  </style>
+  <script>
+    // Simple client gate for profile page
+    try {
+      const u = localStorage.getItem('urbaneats_user');
+      if (!u) {
+        const next = encodeURIComponent('profile.html');
+        window.location.replace(`login.html?next=${next}`);
+      }
+    } catch {}
+  </script>
+  <style>
+    .order-row {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .order-row:hover {
+      background-color: #f8f9fa;
+    }
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    .status-pending { background-color: #ffeb3b; color: #000; }
+    .status-confirmed { background-color: #2196f3; color: #fff; }
+    .status-preparing { background-color: #4caf50; color: #fff; }
+    .status-ready { background-color: #ff9800; color: #000; }
+    .status-delivered { background-color: #795548; color: #fff; }
+    .status-cancelled { background-color: #f44336; color: #fff; }
+  </style>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color: black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <div class="menu-top-actions" id="header-action"></div>
+  </div>
+</header>
+
+<main class="container" style="max-width:720px;padding:24px 16px">
+  <h1>Your account</h1>
+  <section class="card" style="padding:16px">
+    <div style="display:flex;gap:16px;align-items:center">
+      <div class="icon-btn" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="currentColor"/>
+          <path d="M4 20.25A8.25 8.25 0 0 1 12.25 12h-.5A8.25 8.25 0 0 1 20 20.25c0 .966-.784 1.75-1.75 1.75H5.75A1.75 1.75 0 0 1 4 20.25Z" fill="currentColor"/>
+        </svg>
+      </div>
+      <div>
+        <div><strong id="p-name">—</strong></div>
+        <div class="muted small" id="p-email">—</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <a class="btn" href="menu.html">Home</a>
+      <button id="logoutBtn" class="btn btn-primary" type="button">Logout</button>
+    </div>
+  </section>
+
+  <section class="card" style="padding:16px;margin-top:16px">
+    <h2 style="margin-top:0">My Orders</h2>
+    <p class="muted small">Click on an order to view details and track status.</p>
+    <div class="table-wrap" style="overflow:auto;margin-top:8px">
+      <table class="table" id="myOrdersTable" style="min-width: 900px">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Order #</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Delivery</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="6" class="text-center">Loading your orders...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>  <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+
+<!-- Order Details Modal -->
+<div id="orderModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+  <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 8px; position: relative;">
+    <span class="close" style="position: absolute; right: 20px; top: 10px; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+    <h2>Order Details</h2>
+    <div id="orderDetails">
+      <div class="order-summary">
+        <div class="order-header" style="display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+          <div>
+            <h3 style="margin: 0 0 5px 0;">Order #<span id="orderNumber"></span></h3>
+            <p style="margin: 0; color: #666;">Placed on <span id="orderDate"></span></p>
+          </div>
+          <div style="text-align: right;">
+            <div id="orderStatus" class="status-badge" style="font-size: 14px; padding: 6px 12px; margin-bottom: 5px;">Processing</div>
+            <div id="deliveryStatus" style="font-size: 12px; color: #666;">Preparing your order</div>
+          </div>
+        </div>
+        
+        <div class="order-items" style="margin-bottom: 20px;">
+          <h4 style="margin: 0 0 10px 0;">Items</h4>
+          <div id="orderItemsList" style="margin-bottom: 15px;"></div>
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid #eee;">
+            <strong>Subtotal</strong>
+            <span id="orderSubtotal"></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 5px 0; border-top: 1px solid #eee;">
+            <div>Delivery Fee</div>
+            <div id="deliveryFee"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid #eee; font-weight: bold;">
+            <div>Total</div>
+            <div id="orderTotal"></div>
+          </div>
+        </div>
+        
+        <div class="delivery-info" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+          <h4 style="margin: 0 0 10px 0;">Delivery Information</h4>
+          <div id="deliveryAddress"></div>
+          <div id="customerPhone" style="margin-top: 5px;"></div>
+        </div>
+        
+        <div class="delivery-status" style="margin-top: 20px;">
+          <h4 style="margin: 0 0 15px 0;">Order Status</h4>
+          <div id="statusTimeline" style="position: relative; padding-left: 20px;">
+            <!-- Status steps will be added here dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="orderModal" class="order-modal">
+  <div class="order-modal-content">
+    <button class="close-modal" id="closeModal">&times;</button>
+    <h3>Order Details</h3>
+    <div id="orderDetails"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { logOut, subscribeUserOrders, subscribeOrder, updateDeliveryPhase } from './assets/js/auth.js';
+  import { formatPrice } from './assets/js/app.js';
+
+  // Get DOM elements
+  const modal = document.getElementById('orderModal');
+  const closeBtn = document.querySelector('.close');
+  const orderDetails = document.getElementById('orderDetails');
+  
+  // Close modal when clicking the X button
+  closeBtn.onclick = function() {
+    modal.style.display = 'none';
+  };
+  
+  // Close modal when clicking outside the modal content
+  window.onclick = function(event) {
+    if (event.target === modal) {
+      modal.style.display = 'none';
+    }
+  };
+  
+  // Show order details in modal
+  function showOrderModal(orderId) {
+    modal.style.display = 'block';
+    
+    // Subscribe to order updates
+    const unsubscribe = subscribeOrder(orderId, (order) => {
+      if (!order) {
+        orderDetails.innerHTML = '<p>Order not found</p>';
+        return;
+      }
+      
+      // Update order header
+      document.getElementById('orderNumber').textContent = orderId.substring(0, 8);
+      
+      // Format and display order date
+      const orderDate = order.createdAt?.toDate ? order.createdAt.toDate() : new Date();
+      document.getElementById('orderDate').textContent = orderDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Update order status
+      const status = order.status || 'pending';
+      const statusElement = document.getElementById('orderStatus');
+      statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      statusElement.className = 'status-badge status-' + status.toLowerCase();
+      
+      // Update delivery status
+      const phase = order.deliveryPhase || 'pending';
+      const phaseLabel = {
+        'pending': 'Preparing your order',
+        'pickup_confirmed': 'Order confirmed - Preparing for pickup',
+        'picked_up': 'Picked up by courier',
+        'ready_for_delivery': 'On the way to you',
+        'delivered': 'Delivered'
+      }[phase] || 'Processing your order';
+      
+      document.getElementById('deliveryStatus').textContent = phaseLabel;
+      
+      // Update order items
+      const itemsList = document.getElementById('orderItemsList');
+      itemsList.innerHTML = '';
+      
+      let subtotal = 0;
+      (order.items || []).forEach(item => {
+        const itemTotal = item.price * item.qty;
+        subtotal += itemTotal;
+        
+        const itemElement = document.createElement('div');
+        itemElement.style.display = 'flex';
+        itemElement.style.justifyContent = 'space-between';
+        itemElement.style.padding = '8px 0';
+        itemElement.style.borderBottom = '1px solid #f0f0f0';
+        
+        itemElement.innerHTML = `
+          <div>
+            <div>${item.qty} × ${item.name}${item.variant ? ` (${item.variant.name})` : ''}</div>
+            <div style="font-size: 12px; color: #666;">${item.notes || ''}</div>
+          </div>
+          <div>${formatPrice(itemTotal)}</div>
+        `;
+        
+        itemsList.appendChild(itemElement);
+      });
+      
+      // Update totals
+      const deliveryFee = order.deliveryFee || 0;
+      const total = subtotal + deliveryFee;
+      
+      document.getElementById('orderSubtotal').textContent = formatPrice(subtotal);
+      document.getElementById('deliveryFee').textContent = formatPrice(deliveryFee);
+      document.getElementById('orderTotal').textContent = formatPrice(total);
+      
+      // Update delivery information
+      const contact = order.contact || {};
+      document.getElementById('deliveryAddress').innerHTML = `
+        <div><strong>${contact.name || 'No name provided'}</strong></div>
+        <div>${contact.address || 'No address provided'}</div>
+        ${contact.apt ? `<div>${contact.apt}</div>` : ''}
+        <div>${contact.city ? `${contact.city}, ` : ''}${contact.state || ''} ${contact.zip || ''}</div>
+      `;
+      
+      if (contact.phone) {
+        document.getElementById('customerPhone').innerHTML = `
+          <div>Phone: <a href="tel:${contact.phone}">${contact.phone}</a></div>
+        `;
+      }
+      
+      // Update status timeline
+      const statusTimeline = document.getElementById('statusTimeline');
+      statusTimeline.innerHTML = '';
+      
+      const statuses = [
+        { id: 'pending', label: 'Order Placed', icon: '✓' },
+        { id: 'pickup_confirmed', label: 'Order Confirmed', icon: '✓' },
+        { id: 'picked_up', label: 'Picked Up', icon: '✓' },
+        { id: 'ready_for_delivery', label: 'On the Way', icon: '✓' },
+        { id: 'delivered', label: 'Delivered', icon: '✓' }
+      ];
+      
+      statuses.forEach((statusItem, index) => {
+        const isCompleted = statuses.findIndex(s => s.id === phase) >= index;
+        const isCurrent = phase === statusItem.id;
+        
+        const statusElement = document.createElement('div');
+        statusElement.style.position = 'relative';
+        statusElement.style.padding = '8px 0 8px 30px';
+        statusElement.style.borderLeft = '2px solid ' + (isCompleted ? '#4caf50' : '#e0e0e0');
+        
+        if (index < statuses.length - 1) {
+          statusElement.style.minHeight = '50px';
+        }
+        
+        statusElement.innerHTML = `
+          <div style="position: absolute; left: -10px; top: 8px; width: 18px; height: 18px; border-radius: 50%; background: ${isCompleted ? '#4caf50' : (isCurrent ? '#4caf50' : '#e0e0e0')}; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px;">
+            ${isCompleted || isCurrent ? '✓' : (index + 1)}
+          </div>
+          <div style="font-weight: ${isCurrent ? 'bold' : 'normal'};">${statusItem.label}</div>
+          ${isCurrent ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${phaseLabel}</div>` : ''}
+        `;
+        
+        statusTimeline.appendChild(statusElement);
+      });
+      
+      // If user is a courier, show action buttons
+      const user = JSON.parse(localStorage.getItem('urbaneats_user') || '{}');
+      const isCourier = user.role === 'courier';
+      
+      if (isCourier && order.status !== 'delivered' && order.status !== 'cancelled') {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.style.marginTop = '20px';
+        actionsDiv.style.paddingTop = '15px';
+        actionsDiv.style.borderTop = '1px solid #eee';
+        
+        let buttons = [];
+        
+        if (phase === 'pending') {
+          buttons.push({ 
+            text: 'Confirm Pickup', 
+            onClick: () => updateOrderStatus(orderId, 'pickup_confirmed'),
+            variant: 'primary'
+          });
+        } else if (phase === 'pickup_confirmed') {
+          buttons.push({ 
+            text: 'Mark as Picked Up', 
+            onClick: () => updateOrderStatus(orderId, 'picked_up'),
+            variant: 'primary'
+          });
+        } else if (phase === 'picked_up') {
+          buttons.push({ 
+            text: 'Ready for Delivery', 
+            onClick: () => updateOrderStatus(orderId, 'ready_for_delivery'),
+            variant: 'primary'
+          });
+        } else if (phase === 'ready_for_delivery') {
+          buttons.push({ 
+            text: 'Mark as Delivered', 
+            onClick: () => updateOrderStatus(orderId, 'delivered'),
+            variant: 'primary'
+          });
+        }
+        
+        if (order.status !== 'cancelled') {
+          buttons.push({
+            text: 'Cancel Order',
+            onClick: () => {
+              if (confirm('Are you sure you want to cancel this order?')) {
+                updateOrderStatus(orderId, 'cancelled');
+              }
+            },
+            variant: 'danger'
+          });
+        }
+        
+        if (buttons.length > 0) {
+          const buttonContainer = document.createElement('div');
+          buttonContainer.style.display = 'flex';
+          buttonContainer.style.gap = '10px';
+          buttonContainer.style.marginTop = '15px';
+          
+          buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.textContent = btn.text;
+            button.style.padding = '8px 16px';
+            button.style.border = 'none';
+            button.style.borderRadius = '4px';
+            button.style.cursor = 'pointer';
+            button.style.fontWeight = '500';
+            
+            if (btn.variant === 'primary') {
+              button.style.backgroundColor = '#4caf50';
+              button.style.color = 'white';
+            } else if (btn.variant === 'danger') {
+              button.style.backgroundColor = '#f44336';
+              button.style.color = 'white';
+            } else {
+              button.style.backgroundColor = '#f0f0f0';
+              button.style.color = '#333';
+            }
+            
+            button.onclick = btn.onClick;
+            buttonContainer.appendChild(button);
+          });
+          
+          actionsDiv.appendChild(buttonContainer);
+          orderDetails.querySelector('.order-summary').appendChild(actionsDiv);
+        }
+      }
+    });
+    
+    // Cleanup subscription when modal is closed
+    const closeModal = () => {
+      modal.style.display = 'none';
+      unsubscribe();
+      closeBtn.onclick = null;
+      window.onclick = null;
+    };
+    
+    closeBtn.onclick = closeModal;
+    window.onclick = (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    };
+  }
+  
+  // Update order status
+  async function updateOrderStatus(orderId, status) {
+    try {
+      // If the status is a delivery phase, use updateDeliveryPhase
+      if (['pickup_confirmed', 'picked_up', 'ready_for_delivery', 'delivered'].includes(status)) {
+        await updateDeliveryPhase(orderId, status);
+      } else {
+        // Otherwise, update the status directly
+        const orderRef = doc(db, 'orders', orderId);
+        await updateDoc(orderRef, { status });
+        
+        // If marking as delivered, also update the delivery phase
+        if (status === 'delivered') {
+          await updateDeliveryPhase(orderId, 'delivered');
+        }
+      }
+      
+      // Show success message
+      alert(`Order status updated to: ${status.replace('_', ' ')}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Failed to update order status. Please try again.');
+    }
+  }
+        </div>
+      `).join('');
+      
+      const total = order.totals?.total ? order.totals.total : 
+        (order.items || []).reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
+      
+      const courierInfo = order.courier ? `
+        <h4>Courier</h4>
+        <p>${order.courier.name || 'Courier'}${order.courier.phone ? ` • ${order.courier.phone}` : ''}</p>
+      ` : '';
+      
+      orderDetails.innerHTML = `
+        <div class="order-status ${statusClass}">
+          ${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
+          ${phase !== 'pending' ? ` • ${phaseLabel}` : ''}
+        </div>
+        <p>Order ID: ${orderId}</p>
+        <p>Placed on: ${order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : 'N/A'}</p>
+        
+        <h4>Items</h4>
+        ${items}
+        
+        <div class="order-total">
+          Total: ${formatPrice(total)}
+        </div>
+        
+        ${courierInfo}
+        
+        <h4>Delivery Address</h4>
+        <p>${order.contact?.address || 'No address provided'}</p>
+        
+        <h4>Contact</h4>
+        <p>${order.contact?.name || 'No name'}</p>
+        <p>${order.contact?.phone || 'No phone'}</p>
+      `;
+    });
+    
+    // Cleanup subscription when modal is closed
+    closeBtn.onclick = () => {
+      modal.style.display = 'none';
+      unsubscribe();
+    };
+  }
+  
+  // Close modal when clicking outside content
+  window.onclick = (event) => {
+    if (event.target === modal) {
+      modal.style.display = 'none';
+    }
+  };
+
+  // Render header action (login/profile)
+  function renderHeaderAction(){
+    const wrap = document.getElementById('header-action');
+    if (!wrap) return;
+    let u=null; try{ u = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+    if (!u){
+      wrap.innerHTML = `<a class="btn login" href="login.html">Login</a>`;
+    } else {
+      const name = u.displayName || u.email || 'Account';
+      wrap.innerHTML = `<a class=\"icon-btn\" href=\"profile.html\" title=\"${name}\" aria-label=\"Profile\">\n        <svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\">\n          <path d=\"M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z\" fill=\"currentColor\"/>\n          <path d=\"M4 20.25A8.25 8.25 0 0 1 12.25 12h-.5A8.25 8.25 0 0 1 20 20.25c0 .966-.784 1.75-1.75 1.75H5.75A1.75 1.75 0 0 1 4 20.25Z\" fill=\"currentColor\"/>\n        </svg>\n      </a>`;
+    }
+  }
+  renderHeaderAction();
+
+  // Hydrate profile data from localStorage (no UID element on page)
+  (function(){
+    try{
+      const u = JSON.parse(localStorage.getItem('urbaneats_user')||'null');
+      if (!u) return;
+      const n = document.getElementById('p-name'); if (n) n.textContent = u.displayName || '—';
+      const e = document.getElementById('p-email'); if (e) e.textContent = u.email || '—';
+    }catch{}
+  })();
+
+  // Logout
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    try{
+      await logOut();
+    }catch{}
+    try{ localStorage.removeItem('urbaneats_user'); }catch{}
+    location.replace('login.html');
+  });
+
+  // My Orders - live subscription
+  // Initialize the orders table
+  (function initMyOrders(){
+    let u=null; 
+    try{ 
+      u = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); 
+    } catch(e) {
+      console.error('Error parsing user data:', e);
+    }
+    
+    if (!u || !u.uid) {
+      console.error('No user found in localStorage');
+      return;
+    }
+    
+    const tbody = document.querySelector('#myOrdersTable tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading your orders…</td></tr>';
+    const unsub = subscribeUserOrders(u.uid, (orders)=>{
+      if (!orders || !orders.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">No orders found. <a href="menu.html">Start ordering</a>.</td></tr>';
+        return;
+      }
+      
+      // Sort orders by date (newest first)
+      orders.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
+      
+      tbody.innerHTML = '';
+      
+      orders.forEach((order) => {
+        const tr = document.createElement('tr');
+        tr.className = 'order-row';
+        tr.style.cursor = 'pointer';
+        tr.onclick = (e) => {
+          // Don't trigger if clicking on a link or button inside the row
+          if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+          showOrderModal(order.id);
+        };
+        
+        const date = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || 0);
+        const formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const status = order.status || 'pending';
+        const statusClass = `status-${status}`.toLowerCase();
+        
+        const phase = order.deliveryPhase || 'pending';
+        const phaseLabel = {
+          'pickup_confirmed': 'Pickup Confirmed',
+          'picked_up': 'Picked Up',
+          'ready_for_delivery': 'On the Way',
+          'delivered': 'Delivered',
+          'cancelled': 'Cancelled'
+        }[phase] || 'Processing';
+        
+        const itemCount = order.items ? order.items.reduce((sum, item) => sum + (item.qty || 1), 0) : 0;
+        const total = order.totals?.total || (order.items ? order.items.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0) : 0);
+        
+        // Truncate the order ID for display
+        const shortOrderId = order.id ? order.id.substring(0, 8) : 'N/A';
+        
+        tr.innerHTML = `
+          <td>${formattedDate}</td>
+          <td><strong>#${shortOrderId}</strong></td>
+          <td>${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
+          <td><strong>${formatPrice(total)}</strong></td>
+          <td><span class="status-badge ${statusClass}" style="text-transform: capitalize;">${status}</span></td>
+          <td>${phaseLabel}</td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+      
+      // If no orders were added (e.g., due to errors), show a message
+      if (tbody.children.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="muted">
+              Unable to load orders. Please refresh the page or 
+              <a href="menu.html" style="color: #4caf50; text-decoration: underline;">place a new order</a>.
+            </td>
+          </tr>
+        `;
+      }
+    });
+    
+    // Cleanup subscription when leaving the page
+    window.addEventListener('beforeunload', () => {
+      if (unsub) unsub();
+    });
+  })();
+  // Listen for order detail events
+  document.addEventListener('showOrderDetails', (e) => {
+    showOrderModal(e.detail);
+  });
+</script>
+</body>
+</html>

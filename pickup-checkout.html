@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Easy Pickup - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+</head>
+<body>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Easy Pickup Details</h1>
+  <div id="pickup-order-summary" class="summary"></div>
+
+  <form id="pickup-form" class="form">
+    <div class="grid-2">
+      <div>
+        <label class="label">Full Name</label>
+        <input class="input" name="name" required />
+      </div>
+      <div>
+        <label class="label">Phone</label>
+        <input class="input" name="phone" required />
+      </div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <label class="label">Email (for Paystack receipt)</label>
+        <input class="input" type="email" name="email" required />
+      </div>
+      <div>
+        <label class="label">Matric Number</label>
+        <input class="input" name="matricNo" required />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Proceed to Payment</button>
+    </div>
+  </form>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="store-admin.html">Terms</a>
+      <a href="admin.html">Admin</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script type="module">
+  import { initNavCartCount, formatPrice, SETTINGS } from './assets/js/app.js';
+  import { getCart, cartTotals, clearCart } from './assets/js/cart.js';
+  import { createOrder } from './assets/js/auth.js';
+
+  const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_API_KEY;
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  const summaryEl = document.getElementById('pickup-order-summary');
+  const form = document.getElementById('pickup-form');
+
+  function computePickupTotals(){
+    let totals = cartTotals();
+    totals = {
+      ...totals,
+      deliveryFee: 0,
+      total: totals.subtotal + totals.tax,
+    };
+    return totals;
+  }
+
+  function renderPickupSummary(){
+    const cart = getCart();
+    if (!cart.length) {
+      summaryEl.innerHTML = '<p>Your cart is empty.</p>';
+      form.style.display = 'none';
+      return;
+    }
+    const totals = computePickupTotals();
+    summaryEl.innerHTML = `
+      <div class="summary-row"><span>Items</span><span>${cart.map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ')}</span></div>
+      <div class="summary-row"><span>Subtotal</span><span>${formatPrice(totals.subtotal)}</span></div>
+      <div class="summary-row"><span>Tax (${Math.round(SETTINGS.taxRate*100)}%)</span><span>${formatPrice(totals.tax)}</span></div>
+      <div class="summary-row"><span>Delivery</span><span>${formatPrice(totals.deliveryFee)}</span></div>
+      <div class="summary-row total"><span>Total</span><span>${formatPrice(totals.total)}</span></div>
+    `;
+  }
+
+  renderPickupSummary();
+
+  function generatePickupCode(){
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 8; i++){
+      out += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return out;
+  }
+
+  async function handlePaystackSuccess(response, { cart, totals, storeIds, data, user }){
+    const pickupCode = generatePickupCode();
+    let orderId = '';
+    try {
+      orderId = await createOrder({
+        user: user || {},
+        items: cart,
+        totals,
+        storeIds,
+        contact: { name: data.name, phone: data.phone, address: '', notes: '', matricNo: data.matricNo },
+        deliveryMethod: 'pickup',
+        status: 'paid',
+        pickupCode,
+        payment: {
+          provider: 'paystack',
+          reference: response.reference,
+        },
+      });
+    } catch (err) {
+      console.error('createOrder after Paystack failed', err);
+      alert('Payment was successful, but we could not create your order. Please contact support with your payment reference: ' + response.reference);
+      return;
+    }
+    clearCart();
+    window.location.href = `order-status.html?orderId=${encodeURIComponent(orderId)}`;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cart = getCart();
+    if (!cart.length) {
+      alert('Your cart is empty.');
+      return;
+    }
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    const totals = computePickupTotals();
+    const storeIds = Array.from(new Set((cart||[]).map(i=> i.storeId).filter(Boolean)));
+
+    let user = null; try{ user = JSON.parse(localStorage.getItem('urbaneats_user')||'null'); }catch{}
+
+    const amountKobo = Math.round(totals.total * 100);
+
+    if (!window.PaystackPop) {
+      console.error('PaystackPop is not available.');
+      alert('Payment system is not available right now. Please refresh the page and try again.');
+      return;
+    }
+    if (!PAYSTACK_PUBLIC_KEY) {
+      console.error('PAYSTACK_PUBLIC_KEY is missing or empty.');
+      alert('Payment configuration is missing. Please contact support.');
+      return;
+    }
+
+    const handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: data.email,
+      amount: amountKobo,
+      currency: SETTINGS.currency || 'NGN',
+      metadata: {
+        custom_fields: [{
+          display_name: 'Customer Name',
+          variable_name: 'customer_name',
+          value: data.name
+        }, {
+          display_name: 'Matric Number',
+          variable_name: 'matric_no',
+          value: data.matricNo
+        }]
+      },
+      callback: function(response){
+        // Delegate to async handler to keep callback a plain function for Paystack SDK
+        handlePaystackSuccess(response, { cart, totals, storeIds, data, user })
+          .catch(err => {
+            console.error('handlePaystackSuccess failed', err);
+            alert('Payment was successful, but there was an error processing your order. Please contact support with your payment reference: ' + response.reference);
+          });
+      },
+      onClose: function(){
+        alert('Payment window closed. Your order has not been created.');
+      }
+    });
+
+    handler.openIframe();
+  });
+</script>
+</body>
+</html>

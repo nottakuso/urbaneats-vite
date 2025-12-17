@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Status - Urbaneats</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <style>
+    .status-card{max-width:720px;margin:24px auto;padding:16px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .muted.small{font-size:12px;color:var(--muted)}
+    .steps{display:flex;gap:12px;margin:10px 0;flex-wrap:wrap}
+    .step{padding:6px 10px;border:1px solid var(--border);border-radius:999px}
+    .step.active{background:#e6f7ed;border-color:#a7e0c1;color:#047857}
+    .account{border:1px dashed var(--border);border-radius:10px;padding:12px;background:#fafafa}
+    .checkwrap{display:flex;align-items:center;gap:10px;margin:10px 0}
+    .check{width:36px;height:36px;border-radius:50%;background:#000;position:relative;display:inline-block}
+    .check:after{content:'';position:absolute;left:10px;top:9px;width:8px;height:16px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(45deg);opacity:0}
+    .animate .check:after{animation:pop .7s forwards ease-out}
+    @keyframes pop{0%{opacity:0;transform:rotate(45deg) scale(.6);}
+      60%{opacity:1;transform:rotate(45deg) scale(1.1);}100%{opacity:1;transform:rotate(45deg) scale(1);}}
+    .pickup-code-boxes{display:inline-flex;gap:6px;margin-top:4px}
+    .pickup-code-box{min-width:32px;min-height:40px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;background:#fff}
+  </style>
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="menu.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart <span id="nav-cart-count" class="badge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Order Status</h1>
+  <div id="content" class="status-card">
+    <p class="muted">Loading order…</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p> 2023 Urbaneats</p>
+  </div>
+</footer>
+
+<script type="module">
+  import { initNavCartCount, formatPrice } from './assets/js/app.js';
+  import { subscribeOrder, signalPayment } from './assets/js/auth.js';
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+  initNavCartCount();
+
+  const params = new URLSearchParams(location.search);
+  const orderId = params.get('orderId');
+  const content = document.getElementById('content');
+
+  if (!orderId){
+    content.innerHTML = '<p class="muted">Missing order ID.</p>';
+  } else {
+    const unsub = subscribeOrder(orderId, (order)=>{
+      if (!order){ content.innerHTML = '<p class="muted">Order not found.</p>'; return; }
+      const items = (order.items||[]).map(i=> `${i.qty} x ${i.name}${i.variant? ' ('+i.variant.name+')':''}`).join(', ');
+      const total = order.totals?.total != null ? formatPrice(order.totals.total) : '';
+      const status = order.status || 'pending';
+      const created = order.createdAt?.seconds ? new Date(order.createdAt.seconds*1000).toLocaleString() : '';
+      const phase = order.deliveryPhase || '';
+      const isPickup = order.deliveryMethod === 'pickup';
+      const pickupCode = order.pickupCode || '';
+      const phaseSteps = [
+        { key: 'pickup_confirmed', label: 'Pickup confirmed' },
+        { key: 'picked_up', label: 'Picked up' },
+        { key: 'ready_for_delivery', label: 'Ready for delivery' },
+        { key: 'delivered', label: 'Delivered' },
+      ];
+      const courierBlock = order.courier?.uid ? `<div class="muted small">Courier: ${order.courier.name||order.courier.uid} ${order.courier.phone? '• '+order.courier.phone:''}</div>` : '';
+
+      const pendingBlock = status === 'pending' ? `
+        <div class="account" role="status" aria-live="polite">
+          <p><strong>Waiting for confirmation…</strong></p>
+          <p class="muted">Do not refresh or leave this page while waiting for order confirmation.</p>
+        </div>
+      ` : '';
+
+      const confirmedBlock = status === 'confirmed' ? `
+        <div class="account" role="status" aria-live="polite">
+          <div class="checkwrap animate"><span class="check"></span><strong>Order confirmed</strong></div>
+          <p>Please make a transfer to the Urbaneats account below and include your order ID in the narration.</p>
+          <p>Note: Please make sure sender's account name matches the name you provided in the checkout form</p>
+          <p><strong>Bank:</strong> Example Bank</p>
+          <p><strong>Account Name:</strong> Urbaneats Ltd</p>
+          <p><strong>Account Number:</strong> <code>0123456789</code></p>
+          <p class="muted small">Keep this page open. You can also save the account details for later. Paystack option coming soon.</p>
+          <div class="row" style="margin-top:8px">
+            <button id="btn-signal-pay" class="btn btn-primary" type="button">I have made payment</button>
+            <span id="signal-msg" class="muted small" style="margin-left:8px"></span>
+          </div>
+        </div>
+      ` : '';
+
+      const paidBlock = status === 'paid' ? `
+        <div class="account" role="status" aria-live="polite">
+          <div class="checkwrap animate"><span class="check"></span><strong>Payment received</strong></div>
+          <p>Your payment has been confirmed.</p>
+          ${isPickup && pickupCode ? `
+            <div>
+              <p><strong>Your pickup code:</strong></p>
+              <div id="pickup-code-display" class="pickup-code-boxes"></div>
+              <p class="muted small">Keep this code safe and do not share it publicly. Show it only to the store staff when collecting your order so they can verify your pickup.</p>
+            </div>
+          ` : `
+            <p>Your order is being prepared, Our Delivery agent will contact you and keep you updated on your order.</p>
+          `}
+          <div style="margin-top:8px"><a class="btn btn-primary" href="menu.html">Back to Menu</a></div>
+        </div>
+      ` : '';
+
+      content.innerHTML = `
+        <div class="steps">
+          <span class="step ${status==='pending'?'active':''}">Pending</span>
+          <span class="step ${status==='confirmed'?'active':''}">Confirmed</span>
+          <span class="step ${status==='paid'?'active':''}">Paid</span>
+        </div>
+        <p class="muted small">Order ID: ${orderId} • ${created}</p>
+        <div style="margin:10px 0"><strong>Items:</strong> ${items}</div>
+        <div style="margin:10px 0"><strong>Total:</strong> ${total}</div>
+        ${courierBlock}
+        ${phase ? `<div class="steps">${phaseSteps.map(s=> `<span class=\"step ${phase===s.key?'active':''}\">${s.label}</span>`).join('')}</div>` : ''}
+        ${pendingBlock}
+        ${confirmedBlock}
+        ${paidBlock}
+      `;
+      // Render pickup code as boxed digits if present
+      if (isPickup && pickupCode){
+        const codeWrap = document.getElementById('pickup-code-display');
+        if (codeWrap){
+          const chars = String(pickupCode).trim().split('');
+          codeWrap.innerHTML = chars.map(ch=>`<div class="pickup-code-box">${ch}</div>`).join('');
+        }
+      }
+      // Wire signal payment button if present
+      const btn = document.getElementById('btn-signal-pay');
+      if (btn){
+        const msg = document.getElementById('signal-msg');
+        if (order.paymentSignal){ btn.disabled = true; btn.textContent = 'Payment will be confirmed'; }
+        btn?.addEventListener('click', async ()=>{
+          btn.disabled = true; btn.textContent = 'Sending…'; msg.textContent = '';
+          try{ await signalPayment(orderId); btn.textContent = 'Payment signaled'; msg.textContent = 'We\'ve notified the admin.'; }
+          catch(e){ btn.disabled = false; btn.textContent = 'I have made payment'; msg.textContent = 'Failed to send. Try again.'; }
+        });
+      }
+    });
+    window.addEventListener('beforeunload', ()=>{ try{ unsub && unsub(); }catch{} });
+  }
+</script>
+</body>
+</html>

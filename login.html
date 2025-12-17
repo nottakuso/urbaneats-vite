@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login - Urbaneats</title>
+  <link rel="shortcut icon" href="assets/img/logourbaneats.png" type="image/x-icon">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+<script src="assets/js/loader.js"></script>
+<header class="site-header" style="background-color:black;">
+  <div class="container header-inner">
+    <a class="brand" href="index.html"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+    <nav class="nav">
+      <a href="signup.html">Sign up</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container" style="max-width:520px;padding:40px 16px 32px">
+  <section class="store-card" style="border-radius:16px;margin-top:16px">
+    <h1 style="margin:0 0 8px;font-size:26px">Welcome back</h1>
+    <p class="muted small" style="margin:0 0 18px">Sign in to track your orders, manage your cart, and access your store dashboard.</p>
+    <form id="login-form" class="form" style="padding-top:4px">
+      <div>
+        <label class="label">Email</label>
+        <input class="input" name="email" type="email" required />
+      </div>
+
+      <div>
+        <label class="label">Password</label>
+        <input class="input" name="password" type="password" required minlength="6" />
+      </div>
+
+      <button class="btn btn-primary" type="submit" style="width:100%">Login</button>
+      <p class="small muted">Don't have an account? <a href="signup.html">Sign up</a></p>
+      <p id="login-error" class="small" style="color:#ef4444;margin:4px 0 0"></p>
+    </form>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/"><img src="assets/img/logourbaneats.png" alt="Urbaneats logo" class="brand-logo"></a>
+      <p class="muted">Delicious food, delivered fast. Order from the best spots in town.</p>
+    </div>
+    <nav class="footer-col">
+      <h4>Explore</h4>
+      <a href="menu.html">Menu</a>
+      <a href="#">Offers</a>
+      <a href="#">About</a>
+    </nav>
+    <nav class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Help Center</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="courier-login.html">Become a courier</a>
+    </nav>
+    <div class="footer-col">
+      <h4>Get in touch</h4>
+      <p class="muted small">Email: urbaneats@example.com</p>
+      <p class="muted small">Phone/WhatsApp: +44 1234 567890</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year"></span> Urbaneats</p>
+  </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script type="module">
+  import { signIn, getUserProfile } from './assets/js/auth.js';
+
+  const form = document.getElementById('login-form');
+  const errEl = document.getElementById('login-error');
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || 'index.html';
+
+  // If already logged in, skip (we'll still send them to the intended page)
+  try {
+    if (localStorage.getItem('urbaneats_user')) location.replace(next);
+  } catch {}
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+      const user = await signIn(data.email, data.password);
+      // After login, check if this user is a store admin (has storeId in profile)
+      let profile = null;
+      try { profile = await getUserProfile(user.uid); } catch {}
+      if (profile && profile.storeId) {
+        location.replace('store-admin.html');
+      } else {
+        location.replace(next);
+      }
+    } catch (err) {
+          // Show a friendly message instead of the raw Firebase error text
+      errEl.textContent = 'Invalid email or password';
+    }
+  });
+</script>
+</body>
+</html>
